@@ -20,7 +20,7 @@ export default function Footer() {
           {/* Links */}
           <div>
             <h4 className="text-[13px] font-semibold text-white mb-4 tracking-wide">
-              둘러보기
+              카테고리별 숙소
             </h4>
             <ul className="space-y-2.5">
               <li>
@@ -30,12 +30,12 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/stays?category=펜션" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  펜션
+                  펜션 / 독채
                 </Link>
               </li>
               <li>
                 <Link href="/stays?category=호텔" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  부티크 호텔
+                  부티크 호텔 / 리조트
                 </Link>
               </li>
               <li>
@@ -48,27 +48,37 @@ export default function Footer() {
 
           <div>
             <h4 className="text-[13px] font-semibold text-white mb-4 tracking-wide">
-              지역별
+              지역별 숙소
             </h4>
             <ul className="space-y-2.5">
               <li>
                 <Link href="/stays?region=제주" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  제주
+                  제주특별자치도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=강원" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  강원
+                  강원특별자치도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=경상" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  경상
+                  경상도 (부산 · 경주 · 통영)
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=전라" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  전라
+                  전라도 (전주 · 여수 · 담양)
+                </Link>
+              </li>
+              <li>
+                <Link href="/stays?region=서울" className="text-[13px] text-white/60 hover:text-accent transition-colors">
+                  서울특별시
+                </Link>
+              </li>
+              <li>
+                <Link href="/stays?region=경기" className="text-[13px] text-white/60 hover:text-accent transition-colors">
+                  경기도
                 </Link>
               </li>
             </ul>

@@ -3,7 +3,7 @@ import Link from "next/link";
 const categories = [
   {
     name: "한옥",
-    description: "전통의 멋과 현대의 편안함",
+    description: "전통 한옥의 멋과 현대적 편안함",
     icon: (
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M4 16l12-10 12 10" />
@@ -14,7 +14,7 @@ const categories = [
   },
   {
     name: "펜션",
-    description: "자연 속 프라이빗한 공간",
+    description: "자연 속 프라이빗 독채 숙소",
     icon: (
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M3 28h26" />
@@ -25,7 +25,7 @@ const categories = [
   },
   {
     name: "호텔",
-    description: "프리미엄 서비스와 시설",
+    description: "부티크 호텔 · 리조트",
     icon: (
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
         <rect x="4" y="6" width="24" height="22" rx="1" />
@@ -36,7 +36,7 @@ const categories = [
   },
   {
     name: "게스트하우스",
-    description: "새로운 만남과 가성비 여행",
+    description: "여행자들과 함께하는 가성비 숙소",
     icon: (
       <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
         <circle cx="16" cy="10" r="4" />

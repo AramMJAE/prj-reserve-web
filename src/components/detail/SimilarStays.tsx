@@ -1,6 +1,9 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { mockStays } from "@/data/mock-stays";
+import { getSimilarStays } from "@/lib/stays-api";
 import { formatPrice } from "@/lib/utils";
 import type { Stay } from "@/types";
 
@@ -9,15 +12,11 @@ interface SimilarStaysProps {
 }
 
 export default function SimilarStays({ currentStay }: SimilarStaysProps) {
-  // Find similar stays: same region or category, excluding current
-  const similar = mockStays
-    .filter(
-      (s) =>
-        s.id !== currentStay.id &&
-        (s.region === currentStay.region || s.category === currentStay.category)
-    )
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 4);
+  const [similar, setSimilar] = useState<Stay[]>([]);
+
+  useEffect(() => {
+    getSimilarStays(currentStay, 4).then(setSimilar);
+  }, [currentStay]);
 
   if (similar.length === 0) return null;
 

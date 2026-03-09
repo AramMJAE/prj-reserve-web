@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { mockStays } from "@/data/mock-stays";
+import { getStaysByRegion } from "@/lib/stays-api";
 import { formatPrice, cn } from "@/lib/utils";
+import type { Stay } from "@/types";
 
 const regions = [
   { name: "제주", emoji: "" },
@@ -13,7 +14,7 @@ const regions = [
   { name: "전라", emoji: "" },
 ];
 
-function StayCard({ stay }: { stay: (typeof mockStays)[number] }) {
+function StayCard({ stay }: { stay: Stay }) {
   return (
     <Link href={`/stays/${stay.id}`} className="group block flex-shrink-0">
       <div className="relative aspect-[4/3] rounded-card overflow-hidden mb-3">
@@ -51,16 +52,16 @@ function StayCard({ stay }: { stay: (typeof mockStays)[number] }) {
 }
 
 function RegionCarousel({ regionName }: { regionName: string }) {
-  const stays = mockStays
-    .filter((s) => s.region === regionName)
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 7);
-
+  const [stays, setStays] = useState<Stay[]>([]);
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+
+  useEffect(() => {
+    getStaysByRegion(regionName, 7).then(setStays);
+  }, [regionName]);
 
   // Desktop shows 3, mobile shows 1
   const maxDesktop = Math.max(0, stays.length - 3);
@@ -81,13 +82,15 @@ function RegionCarousel({ regionName }: { regionName: string }) {
   }, [maxDesktop, maxMobile]);
 
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || stays.length === 0) return;
     const id = setInterval(next, 4000);
     return () => clearInterval(id);
-  }, [isPaused, next]);
+  }, [isPaused, next, stays.length]);
 
   // gap in px
   const gap = 24;
+
+  if (stays.length === 0) return null;
 
   return (
     <div

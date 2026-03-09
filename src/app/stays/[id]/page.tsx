@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import Toast from "@/components/common/Toast";
 import ScrollToTop from "@/components/common/ScrollToTop";
-import { mockStays } from "@/data/mock-stays";
 import { mockReviews } from "@/data/mock-reviews";
 import { mockReservations } from "@/data/mock-reservations";
+import { getStayById } from "@/lib/stays-api";
 import { formatPrice, formatDate, calculateNights } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { DayPicker, DateRange } from "react-day-picker";
@@ -19,14 +19,15 @@ import CancellationPolicy from "@/components/detail/CancellationPolicy";
 import SimilarStays from "@/components/detail/SimilarStays";
 import PriceBreakdown from "@/components/detail/PriceBreakdown";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import type { Stay } from "@/types";
 
 export default function StayDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const stay = mockStays.find((s) => s.id === params.id);
-  const reviews = mockReviews.filter((r) => r.stay_id === params.id);
   const { wishlistIds, toggleWishlist, showToast, user } = useStore();
 
+  const [stay, setStay] = useState<Stay | null>(null);
+  const [stayLoading, setStayLoading] = useState(true);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>();
   const [guests, setGuests] = useState(2);
   const [showAllImages, setShowAllImages] = useState(false);
@@ -37,8 +38,21 @@ export default function StayDetailPage() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState("");
-  const [localReviews, setLocalReviews] = useState(reviews);
+  const [localReviews, setLocalReviews] = useState<typeof mockReviews>([]);
   const [reviewSort, setReviewSort] = useState<"latest" | "rating_high" | "rating_low">("latest");
+
+  useEffect(() => {
+    if (params.id) {
+      getStayById(params.id as string).then((data) => {
+        setStay(data);
+        if (data) {
+          const reviews = mockReviews.filter((r) => r.stay_id === data.id || r.stay_id === params.id);
+          setLocalReviews(reviews);
+        }
+        setStayLoading(false);
+      });
+    }
+  }, [params.id]);
 
   const isWished = stay ? wishlistIds.includes(stay.id) : false;
   const touchStartX = useRef<number | null>(null);
@@ -105,6 +119,20 @@ export default function StayDetailPage() {
     const next = !isWished;
     showToast(next ? "찜 목록에 추가되었습니다" : "찜 목록에서 제거되었습니다", next ? "success" : "info");
   }, [stay, isWished, toggleWishlist, showToast]);
+
+  if (stayLoading) {
+    return (
+      <>
+        <Header />
+        <main className="pt-[72px] min-h-screen flex items-center justify-center bg-bg-off">
+          <div className="text-center">
+            <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-[14px] text-text-secondary">숙소 정보를 불러오는 중...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   if (!stay) {
     return (

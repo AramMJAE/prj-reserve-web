@@ -1,14 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { mockStays } from "@/data/mock-stays";
+import { getFeaturedStays } from "@/lib/stays-api";
 import { formatPrice } from "@/lib/utils";
 
-const curatedStayIds = ["stay-011", "stay-001", "stay-015", "stay-008"];
+export default async function Curation() {
+  const curated = await getFeaturedStays(4);
 
-export default function Curation() {
-  const curated = curatedStayIds
-    .map((id) => mockStays.find((s) => s.id === id))
-    .filter(Boolean);
+  if (curated.length === 0) return null;
 
   return (
     <section className="py-section bg-secondary">
@@ -59,38 +57,36 @@ export default function Curation() {
           )}
 
           {/* Small Cards */}
-          {curated.slice(1, 4).map((stay) =>
-            stay ? (
-              <Link
-                key={stay.id}
-                href={`/stays/${stay.id}`}
-                className="group relative rounded-card overflow-hidden aspect-[4/3]"
-              >
-                <Image
-                  src={stay.images[0]}
-                  alt={stay.name}
-                  fill
-                  className="object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <span className="text-white/70 text-[11px] tracking-wider uppercase">
-                    {stay.category} · {stay.region}
+          {curated.slice(1, 4).map((stay) => (
+            <Link
+              key={stay.id}
+              href={`/stays/${stay.id}`}
+              className="group relative rounded-card overflow-hidden aspect-[4/3]"
+            >
+              <Image
+                src={stay.images[0]}
+                alt={stay.name}
+                fill
+                className="object-cover group-hover:scale-[1.03] transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                <span className="text-white/70 text-[11px] tracking-wider uppercase">
+                  {stay.category} · {stay.region}
+                </span>
+                <h3 className="text-white text-[18px] font-serif font-bold mt-1">
+                  {stay.name}
+                </h3>
+                <p className="text-accent text-[14px] font-semibold mt-1">
+                  {formatPrice(stay.price)}
+                  <span className="text-white/50 text-[12px] font-normal">
+                    {" "}
+                    / 1박
                   </span>
-                  <h3 className="text-white text-[18px] font-serif font-bold mt-1">
-                    {stay.name}
-                  </h3>
-                  <p className="text-accent text-[14px] font-semibold mt-1">
-                    {formatPrice(stay.price)}
-                    <span className="text-white/50 text-[12px] font-normal">
-                      {" "}
-                      / 1박
-                    </span>
-                  </p>
-                </div>
-              </Link>
-            ) : null
-          )}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </section>

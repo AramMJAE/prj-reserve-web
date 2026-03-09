@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/common/Header";
@@ -7,15 +8,21 @@ import Footer from "@/components/common/Footer";
 import Toast from "@/components/common/Toast";
 import ScrollToTop from "@/components/common/ScrollToTop";
 import { useStore } from "@/store/useStore";
-import { mockStays } from "@/data/mock-stays";
+import { getStaysByIds } from "@/lib/stays-api";
 import { formatPrice, cn } from "@/lib/utils";
 import type { Stay } from "@/types";
 
 export default function ComparePage() {
   const { compareIds, clearCompare } = useStore();
-  const stays = compareIds
-    .map((id) => mockStays.find((s) => s.id === id))
-    .filter(Boolean) as Stay[];
+  const [stays, setStays] = useState<Stay[]>([]);
+
+  useEffect(() => {
+    if (compareIds.length > 0) {
+      getStaysByIds(compareIds).then(setStays);
+    } else {
+      setStays([]);
+    }
+  }, [compareIds]);
 
   const allAmenities = Array.from(new Set(stays.flatMap((s) => s.amenities))).sort();
   const minPrice = stays.length > 0 ? Math.min(...stays.map((s) => s.price)) : 0;

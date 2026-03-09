@@ -25,17 +25,17 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li>
                 <Link href="/stays?category=한옥" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  한옥 스테이
+                  한옥
                 </Link>
               </li>
               <li>
                 <Link href="/stays?category=펜션" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  펜션 / 독채
+                  펜션
                 </Link>
               </li>
               <li>
                 <Link href="/stays?category=호텔" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  부티크 호텔 / 리조트
+                  호텔
                 </Link>
               </li>
               <li>
@@ -53,27 +53,27 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li>
                 <Link href="/stays?region=제주" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  제주특별자치도
+                  제주도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=강원" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  강원특별자치도
+                  강원도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=경상" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  경상도 (부산 · 경주 · 통영)
+                  경상도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=전라" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  전라도 (전주 · 여수 · 담양)
+                  전라도
                 </Link>
               </li>
               <li>
                 <Link href="/stays?region=서울" className="text-[13px] text-white/60 hover:text-accent transition-colors">
-                  서울특별시
+                  서울
                 </Link>
               </li>
               <li>

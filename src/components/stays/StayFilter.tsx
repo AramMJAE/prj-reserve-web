@@ -6,7 +6,15 @@ import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/utils";
 import type { SortOption } from "@/types";
 
-const regions = ["전체", "제주", "강원", "경상", "전라", "서울", "경기"];
+const regions = [
+  { value: "전체", label: "전체" },
+  { value: "제주", label: "제주도" },
+  { value: "강원", label: "강원도" },
+  { value: "경상", label: "경상도" },
+  { value: "전라", label: "전라도" },
+  { value: "서울", label: "서울" },
+  { value: "경기", label: "경기도" },
+];
 const categories = ["전체", "한옥", "펜션", "호텔", "게스트하우스"];
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "recommended", label: "추천순" },
@@ -87,16 +95,16 @@ export default function StayFilter({
           <div className="flex flex-wrap gap-1.5">
             {regions.map((r) => (
               <button
-                key={r}
-                onClick={() => updateParams("region", r)}
+                key={r.value}
+                onClick={() => updateParams("region", r.value)}
                 className={cn(
                   "px-3 py-1.5 rounded-button text-[13px] font-medium transition-all",
-                  (currentRegion === r || (!currentRegion && r === "전체"))
+                  (currentRegion === r.value || (!currentRegion && r.value === "전체"))
                     ? "bg-primary text-white"
                     : "bg-bg-off text-text-secondary hover:bg-gray-200"
                 )}
               >
-                {r}
+                {r.label}
               </button>
             ))}
           </div>

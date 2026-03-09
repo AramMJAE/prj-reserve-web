@@ -103,12 +103,12 @@ export default function Footer() {
             &copy; 2026 STAYLOG. All rights reserved.
           </p>
           <div className="flex items-center gap-5">
-            <span className="text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors">
+            <Link href="/terms" className="text-[12px] text-white/40 hover:text-white/60 transition-colors">
               이용약관
-            </span>
-            <span className="text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors">
+            </Link>
+            <Link href="/privacy" className="text-[12px] text-white/40 hover:text-white/60 transition-colors">
               개인정보처리방침
-            </span>
+            </Link>
           </div>
         </div>
       </div>

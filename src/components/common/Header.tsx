@@ -58,6 +58,24 @@ export default function Header() {
             >
               숙소 둘러보기
             </Link>
+            <Link
+              href="/compare"
+              className={cn(
+                "text-[15px] font-medium transition-colors duration-300 hover:text-accent",
+                showWhiteBg ? "text-text-primary" : "text-white/90"
+              )}
+            >
+              숙소 비교
+            </Link>
+            <Link
+              href="/faq"
+              className={cn(
+                "text-[15px] font-medium transition-colors duration-300 hover:text-accent",
+                showWhiteBg ? "text-text-primary" : "text-white/90"
+              )}
+            >
+              고객센터
+            </Link>
             {user ? (
               <>
                 <Link
@@ -128,6 +146,20 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               숙소 둘러보기
+            </Link>
+            <Link
+              href="/compare"
+              className="block text-[15px] font-medium text-text-primary py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              숙소 비교
+            </Link>
+            <Link
+              href="/faq"
+              className="block text-[15px] font-medium text-text-primary py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              고객센터
             </Link>
             {user ? (
               <Link

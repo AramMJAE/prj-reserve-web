@@ -131,14 +131,26 @@ export const useStore = create<AppState>((set) => ({
   compareIds: [],
   toggleCompare: (stayId) => {
     set((state) => {
+      let next: string[];
       if (state.compareIds.includes(stayId)) {
-        return { compareIds: state.compareIds.filter((id) => id !== stayId) };
+        next = state.compareIds.filter((id) => id !== stayId);
+      } else if (state.compareIds.length >= 3) {
+        return state;
+      } else {
+        next = [...state.compareIds, stayId];
       }
-      if (state.compareIds.length >= 3) return state;
-      return { compareIds: [...state.compareIds, stayId] };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("staylog_compare", JSON.stringify(next));
+      }
+      return { compareIds: next };
     });
   },
-  clearCompare: () => set({ compareIds: [] }),
+  clearCompare: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("staylog_compare");
+    }
+    set({ compareIds: [] });
+  },
 }));
 
 // Initialize from localStorage on client
@@ -146,6 +158,7 @@ if (typeof window !== "undefined") {
   const savedWishlist = localStorage.getItem("staylog_wishlist");
   const savedUser = localStorage.getItem("staylog_user");
   const savedRecent = localStorage.getItem("staylog_recent");
+  const savedCompare = localStorage.getItem("staylog_compare");
 
   const updates: Partial<AppState> = {};
   if (savedWishlist) {
@@ -156,6 +169,9 @@ if (typeof window !== "undefined") {
   }
   if (savedRecent) {
     try { updates.recentlyViewed = JSON.parse(savedRecent); } catch { /* ignore */ }
+  }
+  if (savedCompare) {
+    try { updates.compareIds = JSON.parse(savedCompare); } catch { /* ignore */ }
   }
   if (Object.keys(updates).length > 0) {
     useStore.setState(updates);

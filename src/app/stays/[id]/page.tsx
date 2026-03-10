@@ -13,6 +13,7 @@ import { getStayById } from "@/lib/stays-api";
 import { formatPrice, formatDate, calculateNights } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { DayPicker, DateRange } from "react-day-picker";
+import { ko } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
 import HouseRules from "@/components/detail/HouseRules";
 import CancellationPolicy from "@/components/detail/CancellationPolicy";
@@ -171,8 +172,24 @@ export default function StayDetailPage() {
       return;
     }
     // 예약 생성 후 확인 페이지로 이동
+    const reservationId = `rsv-${Date.now()}`;
+    const reservationData = {
+      id: reservationId,
+      stay_id: stay.id,
+      user_id: user.id,
+      check_in: selectedRange.from.toISOString().split("T")[0],
+      check_out: selectedRange.to.toISOString().split("T")[0],
+      guests,
+      total_price: totalPrice,
+      status: "confirmed" as const,
+      created_at: new Date().toISOString(),
+    };
+    // localStorage에 예약 저장 (Supabase 미연동 시 fallback)
+    const saved = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
+    saved.push(reservationData);
+    localStorage.setItem("staylog_reservations", JSON.stringify(saved));
     showToast("예약이 완료되었습니다!", "success");
-    router.push("/reservation/rsv-001");
+    router.push(`/reservation/${reservationId}`);
   };
 
   const handleReviewSubmit = () => {
@@ -559,6 +576,7 @@ export default function StayDetailPage() {
                     onSelect={setSelectedRange}
                     disabled={[{ before: new Date() }, ...bookedDates.map((d) => d)]}
                     numberOfMonths={1}
+                    locale={ko}
                     className="!font-sans"
                     modifiersStyles={{
                       disabled: { color: "#ccc", textDecoration: "line-through" },
@@ -654,6 +672,7 @@ export default function StayDetailPage() {
                   onSelect={setSelectedRange}
                   disabled={[{ before: new Date() }, ...bookedDates]}
                   numberOfMonths={1}
+                  locale={ko}
                   className="!font-sans mx-auto"
                   modifiersStyles={{
                     disabled: { color: "#ccc", textDecoration: "line-through" },

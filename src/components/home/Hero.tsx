@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
 import { DayPicker, DateRange } from "react-day-picker";
+import { ko } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
 
 const regions = [
@@ -197,6 +198,7 @@ export default function Hero() {
                 }}
                 disabled={{ before: new Date() }}
                 numberOfMonths={typeof window !== "undefined" && window.innerWidth >= 640 ? 2 : 1}
+                locale={ko}
                 className="!font-sans mx-auto"
               />
             </div>

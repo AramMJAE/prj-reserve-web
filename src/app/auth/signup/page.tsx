@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
+import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -30,12 +31,31 @@ export default function SignupPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setUser({ id: "user-01", email, name });
-      showToast("회원가입이 완료되었습니다", "success");
+
+    if (supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: "user" } },
+      });
       setLoading(false);
-      router.push("/");
-    }, 800);
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      if (data.user) {
+        setUser({ id: data.user.id, email, name, role: "user" });
+        showToast("회원가입이 완료되었습니다", "success");
+        router.push("/");
+      }
+    } else {
+      setTimeout(() => {
+        setUser({ id: `user-${Date.now()}`, email, name, role: "user" });
+        showToast("회원가입이 완료되었습니다", "success");
+        setLoading(false);
+        router.push("/");
+      }, 800);
+    }
   };
 
   return (

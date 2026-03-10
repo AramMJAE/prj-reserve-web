@@ -113,6 +113,20 @@ html {
   animation: checkmark-draw 0.4s ease-out 0.3s both;
 }
 
+/* Confetti animation */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  animation: confetti-fall 3s ease-in-out forwards;
+  z-index: 200;
+  pointer-events: none;
+}
+
 /* Hide scrollbar */
 .scrollbar-hide {
   -ms-overflow-style: none;

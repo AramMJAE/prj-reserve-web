@@ -54,7 +54,15 @@ export default function MyPage() {
     );
   }
 
-  const filteredReservations = mockReservations.filter((r) => {
+  // mock + localStorage 예약 통합
+  const allReservations = (() => {
+    const localSaved = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("staylog_reservations") || "[]")
+      : [];
+    return [...mockReservations, ...localSaved];
+  })();
+
+  const filteredReservations = allReservations.filter((r: typeof mockReservations[0]) => {
     if (reservationFilter === "all") return true;
     if (reservationFilter === "upcoming") return r.status === "pending" || r.status === "confirmed";
     if (reservationFilter === "completed") return r.status === "completed";
@@ -72,7 +80,7 @@ export default function MyPage() {
   };
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "reservations", label: "예약 내역", count: mockReservations.length },
+    { key: "reservations", label: "예약 내역", count: allReservations.length },
     { key: "wishlist", label: "찜 목록", count: wishedStays.length },
     { key: "reviews", label: "내 리뷰", count: userReviews.length },
   ];
@@ -157,7 +165,7 @@ export default function MyPage() {
                   {filteredReservations.map((rsv) => {
                     const stay = mockStays.find((s) => s.id === rsv.stay_id);
                     if (!stay) return null;
-                    const status = statusMap[rsv.status];
+                    const status = statusMap[rsv.status as keyof typeof statusMap];
 
                     return (
                       <Link

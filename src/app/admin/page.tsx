@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import Toast from "@/components/common/Toast";
@@ -9,6 +10,7 @@ import { mockStays } from "@/data/mock-stays";
 import { mockReservations } from "@/data/mock-reservations";
 import { mockReviews } from "@/data/mock-reviews";
 import { formatPrice, cn } from "@/lib/utils";
+import { useStore } from "@/store/useStore";
 import type { Stay } from "@/types";
 
 type AdminTab = "dashboard" | "stays" | "reservations";
@@ -21,9 +23,53 @@ const statusMap = {
 };
 
 export default function AdminPage() {
+  const { user } = useStore();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [editStay, setEditStay] = useState<Stay | null>(null);
   const [showStayModal, setShowStayModal] = useState(false);
+
+  // 관리자 권한 체크
+  if (!user) {
+    return (
+      <>
+        <Header />
+        <main className="pt-[72px] min-h-screen flex items-center justify-center bg-bg-off">
+          <div className="text-center">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" className="mx-auto mb-4">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round" />
+            </svg>
+            <p className="text-[20px] font-semibold text-primary mb-2">로그인이 필요합니다</p>
+            <p className="text-[14px] text-text-secondary mb-4">관리자 페이지에 접근하려면 로그인하세요</p>
+            <Link href="/auth/login" className="inline-block bg-primary text-white px-6 py-2.5 rounded-button text-[14px] font-medium hover:bg-primary/90 transition-colors">
+              로그인하기
+            </Link>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (user.role !== "admin") {
+    return (
+      <>
+        <Header />
+        <main className="pt-[72px] min-h-screen flex items-center justify-center bg-bg-off">
+          <div className="text-center">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5" className="mx-auto mb-4">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M15 9l-6 6M9 9l6 6" strokeLinecap="round" />
+            </svg>
+            <p className="text-[20px] font-semibold text-primary mb-2">접근 권한이 없습니다</p>
+            <p className="text-[14px] text-text-secondary mb-4">관리자 계정으로 로그인해주세요</p>
+            <Link href="/" className="inline-block bg-primary text-white px-6 py-2.5 rounded-button text-[14px] font-medium hover:bg-primary/90 transition-colors">
+              홈으로 돌아가기
+            </Link>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   const tabs: { key: AdminTab; label: string }[] = [
     { key: "dashboard", label: "대시보드" },

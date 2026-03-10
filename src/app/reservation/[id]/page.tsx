@@ -10,9 +10,38 @@ import Toast from "@/components/common/Toast";
 import { mockReservations } from "@/data/mock-reservations";
 import { mockStays } from "@/data/mock-stays";
 import { formatPrice, formatDate, calculateNights } from "@/lib/utils";
-import { getSimilarStays } from "@/lib/stays-api";
+import { getSimilarStays, getStayById } from "@/lib/stays-api";
 import { useStore } from "@/store/useStore";
-import type { Stay } from "@/types";
+import type { Stay, Reservation } from "@/types";
+
+function Confetti() {
+  const colors = ["#C8A882", "#F5F0EB", "#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1"];
+  const pieces = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    delay: `${Math.random() * 2}s`,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    size: `${Math.random() * 8 + 4}px`,
+  }));
+  return (
+    <>
+      {pieces.map((p) => (
+        <div
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: p.left,
+            animationDelay: p.delay,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: Math.random() > 0.5 ? "50%" : "0",
+          }}
+        />
+      ))}
+    </>
+  );
+}
 
 const statusMap = {
   pending: { label: "대기중", color: "bg-yellow-100 text-yellow-700", step: 1 },
@@ -41,23 +70,53 @@ export default function ReservationDetailPage() {
   const [modifyGuests, setModifyGuests] = useState(0);
   const [modifyCheckIn, setModifyCheckIn] = useState("");
   const [modifyCheckOut, setModifyCheckOut] = useState("");
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [stay, setStay] = useState<Stay | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const reservation = mockReservations.find((r) => r.id === params.id);
-  const stay = reservation ? mockStays.find((s) => s.id === reservation.stay_id) : null;
-
+  // mock + localStorage에서 예약 찾기
   useEffect(() => {
-    if (stay) {
-      getSimilarStays(stay, 3).then(setSimilarStays);
-    }
-  }, [stay]);
+    const id = params.id as string;
+    let found = mockReservations.find((r) => r.id === id) || null;
 
-  useEffect(() => {
-    if (reservation) {
-      setModifyGuests(reservation.guests);
-      setModifyCheckIn(reservation.check_in.split("T")[0]);
-      setModifyCheckOut(reservation.check_out.split("T")[0]);
+    if (!found && typeof window !== "undefined") {
+      const saved: Reservation[] = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
+      found = saved.find((r) => r.id === id) || null;
     }
-  }, [reservation]);
+
+    if (found) {
+      setReservation(found);
+      setModifyGuests(found.guests);
+      setModifyCheckIn(found.check_in.split("T")[0]);
+      setModifyCheckOut(found.check_out.split("T")[0]);
+
+      // 숙소 정보 가져오기
+      const mockStay = mockStays.find((s) => s.id === found!.stay_id);
+      if (mockStay) {
+        setStay(mockStay);
+        getSimilarStays(mockStay, 3).then(setSimilarStays);
+      } else {
+        getStayById(found.stay_id).then((s) => {
+          if (s) {
+            setStay(s);
+            getSimilarStays(s, 3).then(setSimilarStays);
+          }
+        });
+      }
+    }
+    setLoading(false);
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <main className="pt-[72px] min-h-screen flex items-center justify-center bg-bg-off">
+          <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </main>
+      </>
+    );
+  }
 
   if (!reservation || !stay) {
     return (
@@ -118,6 +177,9 @@ export default function ReservationDetailPage() {
       <Header />
       <main className="pt-[72px] min-h-screen bg-bg-off">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          {/* Confetti */}
+          {currentStatus !== "cancelled" && <Confetti />}
+
           {/* Success Header */}
           {currentStatus !== "cancelled" && (
             <div className="text-center mb-8 animate-fade-in-up">

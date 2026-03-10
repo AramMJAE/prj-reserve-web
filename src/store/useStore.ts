@@ -30,8 +30,8 @@ interface AppState {
   initWishlist: () => void;
 
   // Auth
-  user: { id: string; email: string; name: string } | null;
-  setUser: (user: { id: string; email: string; name: string } | null) => void;
+  user: { id: string; email: string; name: string; role?: string } | null;
+  setUser: (user: { id: string; email: string; name: string; role?: string } | null) => void;
 
   // Toast
   toast: { message: string; type: "success" | "error" | "info" } | null;

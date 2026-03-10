@@ -6,7 +6,15 @@ import { useStore } from "@/store/useStore";
 import { DayPicker, DateRange } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-const regions = ["전체", "제주", "강원", "경상", "전라", "서울", "경기"];
+const regions = [
+  { value: "전체", label: "전체" },
+  { value: "제주", label: "제주도" },
+  { value: "강원", label: "강원도" },
+  { value: "경상", label: "경상도" },
+  { value: "전라", label: "전라도" },
+  { value: "서울", label: "서울" },
+  { value: "경기", label: "경기도" },
+];
 
 export default function Hero() {
   const router = useRouter();
@@ -81,8 +89,8 @@ export default function Hero() {
                 className="w-full px-4 py-4 text-[14px] text-text-primary bg-transparent border-none outline-none appearance-none cursor-pointer"
               >
                 {regions.map((r) => (
-                  <option key={r} value={r}>
-                    {r === "전체" ? "어디로 떠나시나요?" : r}
+                  <option key={r.value} value={r.value}>
+                    {r.value === "전체" ? "어디로 떠나시나요?" : r.label}
                   </option>
                 ))}
               </select>
@@ -145,8 +153,8 @@ export default function Hero() {
               className="w-full px-4 py-3 text-[14px] text-text-primary bg-bg-off border border-gray-200 rounded-card outline-none"
             >
               {regions.map((r) => (
-                <option key={r} value={r}>
-                  {r === "전체" ? "어디로 떠나시나요?" : r}
+                <option key={r.value} value={r.value}>
+                  {r.value === "전체" ? "어디로 떠나시나요?" : r.label}
                 </option>
               ))}
             </select>

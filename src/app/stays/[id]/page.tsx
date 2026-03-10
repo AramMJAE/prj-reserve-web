@@ -52,7 +52,10 @@ export default function StayDetailPage() {
         if (data) {
           addRecentlyViewed(data.id);
           const reviews = mockReviews.filter((r) => r.stay_id === data.id || r.stay_id === params.id);
-          setLocalReviews(reviews);
+          // localStorage에 저장된 리뷰도 합침
+          const savedReviews = JSON.parse(localStorage.getItem("staylog_reviews") || "[]");
+          const localSaved = savedReviews.filter((r: { stay_id: string }) => r.stay_id === data.id || r.stay_id === params.id);
+          setLocalReviews([...localSaved, ...reviews]);
         }
         setStayLoading(false);
       });
@@ -212,7 +215,12 @@ export default function StayDetailPage() {
       user_image: "",
     };
     setLocalReviews([newReview, ...localReviews]);
+    // localStorage에 저장
+    const savedReviews = JSON.parse(localStorage.getItem("staylog_reviews") || "[]");
+    savedReviews.unshift(newReview);
+    localStorage.setItem("staylog_reviews", JSON.stringify(savedReviews));
     setReviewContent("");
+    setReviewRating(5);
     setShowReviewForm(false);
     showToast("리뷰가 등록되었습니다", "success");
   };

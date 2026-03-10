@@ -71,7 +71,13 @@ export default function MyPage() {
   });
 
   const wishedStays = mockStays.filter((s) => wishlistIds.includes(s.id));
-  const userReviews = mockReviews.filter((r) => r.user_id === "user-01");
+  const userReviews = (() => {
+    const mockUserReviews = mockReviews.filter((r) => r.user_id === user.id || r.user_id === "user-01");
+    const savedReviews = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("staylog_reviews") || "[]").filter((r: { user_id: string }) => r.user_id === user.id)
+      : [];
+    return [...savedReviews, ...mockUserReviews];
+  })();
 
   const handleLogout = () => {
     setUser(null);

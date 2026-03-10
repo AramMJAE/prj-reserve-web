@@ -40,15 +40,24 @@ export default function SignupPage() {
           password,
           options: { data: { name, role: "user" } },
         });
+        if (error) {
+          console.warn("[Supabase signUp error]", error.message);
+        }
         if (!error && data.user) {
+          // 이메일 확인 필요 여부 체크 (identities가 비어있으면 이미 존재하는 계정)
+          if (data.user.identities && data.user.identities.length === 0) {
+            showToast("이미 가입된 이메일입니다", "error");
+            setLoading(false);
+            return;
+          }
           setUser({ id: data.user.id, email, name, role: "user" });
-          showToast("회원가입이 완료되었습니다", "success");
+          showToast("회원가입이 완료되었습니다 (Supabase)", "success");
           setLoading(false);
           router.push("/");
           return;
         }
-      } catch {
-        // Supabase 실패 시 mock fallback
+      } catch (err) {
+        console.warn("[Supabase signUp catch]", err);
       }
     }
 

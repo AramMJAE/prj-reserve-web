@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    // Supabase Auth 시도, 실패 시 mock login fallback
+    // Supabase Auth 로그인
     if (supabase) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -47,12 +47,22 @@ export default function LoginPage() {
           router.push("/");
           return;
         }
+        if (error) {
+          setLoading(false);
+          showToast(
+            error.message === "Invalid login credentials"
+              ? "이메일 또는 비밀번호가 올바르지 않습니다"
+              : error.message,
+            "error"
+          );
+          return;
+        }
       } catch {
-        // Supabase 실패 시 mock fallback
+        // Supabase 연결 자체 실패 시에만 mock fallback
       }
     }
 
-    // Mock login fallback
+    // Supabase 미연결 시에만 mock login
     setLoading(false);
     mockLogin(email);
   };

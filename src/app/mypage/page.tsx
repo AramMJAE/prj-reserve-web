@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -9,11 +9,11 @@ import Footer from "@/components/common/Footer";
 import Toast from "@/components/common/Toast";
 import ScrollToTop from "@/components/common/ScrollToTop";
 import EmptyState from "@/components/common/EmptyState";
-import { mockReservations } from "@/data/mock-reservations";
-import { mockStays } from "@/data/mock-stays";
-import { mockReviews } from "@/data/mock-reviews";
 import { formatPrice, formatDate, cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
+import { getUserReservations, getUserReviews, deleteReview } from "@/lib/user-api";
+import { getAllStays } from "@/lib/stays-api";
+import type { Reservation, Review, Stay } from "@/types";
 
 const statusMap = {
   pending: { label: "대기중", color: "bg-yellow-100 text-yellow-700" },
@@ -30,6 +30,28 @@ export default function MyPage() {
   const { user, setUser, wishlistIds, showToast } = useStore();
   const [activeTab, setActiveTab] = useState<Tab>("reservations");
   const [reservationFilter, setReservationFilter] = useState<ReservationFilter>("all");
+  const [allReservations, setAllReservations] = useState<Reservation[]>([]);
+  const [userReviews, setUserReviews] = useState<Review[]>([]);
+  const [allStays, setAllStays] = useState<Stay[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadData = async () => {
+      setDataLoading(true);
+      const [reservations, reviews, stays] = await Promise.all([
+        getUserReservations(user.id),
+        getUserReviews(user.id),
+        getAllStays(),
+      ]);
+      setAllReservations(reservations);
+      setUserReviews(reviews);
+      setAllStays(stays);
+      setDataLoading(false);
+    };
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Redirect if not logged in
   if (!user) {
@@ -54,15 +76,7 @@ export default function MyPage() {
     );
   }
 
-  // mock + localStorage 예약 통합
-  const allReservations = (() => {
-    const localSaved = typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("staylog_reservations") || "[]")
-      : [];
-    return [...mockReservations, ...localSaved];
-  })();
-
-  const filteredReservations = allReservations.filter((r: typeof mockReservations[0]) => {
+  const filteredReservations = allReservations.filter((r: Reservation) => {
     if (reservationFilter === "all") return true;
     if (reservationFilter === "upcoming") return r.status === "pending" || r.status === "confirmed";
     if (reservationFilter === "completed") return r.status === "completed";
@@ -70,14 +84,7 @@ export default function MyPage() {
     return true;
   });
 
-  const wishedStays = mockStays.filter((s) => wishlistIds.includes(s.id));
-  const userReviews = (() => {
-    const mockUserReviews = mockReviews.filter((r) => r.user_id === user.id || r.user_id === "user-01");
-    const savedReviews = typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("staylog_reviews") || "[]").filter((r: { user_id: string }) => r.user_id === user.id)
-      : [];
-    return [...savedReviews, ...mockUserReviews];
-  })();
+  const wishedStays = allStays.filter((s) => wishlistIds.includes(s.id));
 
   const handleLogout = () => {
     setUser(null);
@@ -139,7 +146,12 @@ export default function MyPage() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === "reservations" && (
+          {dataLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!dataLoading && activeTab === "reservations" && (
             <div>
               {/* Filter */}
               <div className="flex gap-2 mb-6">
@@ -169,7 +181,7 @@ export default function MyPage() {
               {filteredReservations.length > 0 ? (
                 <div className="space-y-4">
                   {filteredReservations.map((rsv) => {
-                    const stay = mockStays.find((s) => s.id === rsv.stay_id);
+                    const stay = allStays.find((s) => s.id === rsv.stay_id);
                     if (!stay) return null;
                     const status = statusMap[rsv.status as keyof typeof statusMap];
 
@@ -223,7 +235,7 @@ export default function MyPage() {
             </div>
           )}
 
-          {activeTab === "wishlist" && (
+          {!dataLoading && activeTab === "wishlist" && (
             <div>
               {wishedStays.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -262,12 +274,12 @@ export default function MyPage() {
             </div>
           )}
 
-          {activeTab === "reviews" && (
+          {!dataLoading && activeTab === "reviews" && (
             <div>
               {userReviews.length > 0 ? (
                 <div className="space-y-4">
                   {userReviews.map((review) => {
-                    const stay = mockStays.find((s) => s.id === review.stay_id);
+                    const stay = allStays.find((s) => s.id === review.stay_id);
                     return (
                       <div
                         key={review.id}
@@ -280,9 +292,24 @@ export default function MyPage() {
                           >
                             {stay?.name || "숙소"}
                           </Link>
-                          <span className="text-[12px] text-text-secondary">
-                            {formatDate(review.created_at)}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[12px] text-text-secondary">
+                              {formatDate(review.created_at)}
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await deleteReview(review.id, user.id);
+                                setUserReviews((prev) => prev.filter((r) => r.id !== review.id));
+                                showToast("리뷰가 삭제되었습니다", "info");
+                              }}
+                              className="text-text-secondary hover:text-error transition-colors"
+                              title="삭제"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <div className="flex gap-0.5 mb-2">
                           {[1, 2, 3, 4, 5].map((star) => (

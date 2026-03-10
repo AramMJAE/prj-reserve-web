@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
 import { supabase } from "@/lib/supabase";
+import Toast from "@/components/common/Toast";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -151,6 +152,7 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+      <Toast />
     </div>
   );
 }

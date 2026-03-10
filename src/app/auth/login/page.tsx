@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
 import { supabase } from "@/lib/supabase";
+import Toast from "@/components/common/Toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,18 +48,27 @@ export default function LoginPage() {
           router.push("/");
           return;
         }
-        if (error) {
-          setLoading(false);
-          showToast(
-            error.message === "Invalid login credentials"
-              ? "이메일 또는 비밀번호가 올바르지 않습니다"
-              : error.message,
-            "error"
-          );
+        // 로그인 실패
+        setLoading(false);
+        showToast(
+          error?.message?.includes("Invalid login credentials") || error?.message?.includes("invalid")
+            ? "이메일 또는 비밀번호가 올바르지 않습니다"
+            : "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요",
+          "error"
+        );
+        return;
+      } catch (err: unknown) {
+        setLoading(false);
+        // 네트워크 에러 (서버 자체 연결 불가)만 mock fallback
+        const isNetworkError = err instanceof TypeError && err.message.includes("fetch");
+        if (isNetworkError) {
+          showToast("서버 연결에 실패하여 체험 모드로 로그인합니다", "info");
+          mockLogin(email);
           return;
         }
-      } catch {
-        // Supabase 연결 자체 실패 시에만 mock fallback
+        // 그 외 (400 등 인증 실패)
+        showToast("이메일 또는 비밀번호가 올바르지 않습니다", "error");
+        return;
       }
     }
 
@@ -67,6 +77,7 @@ export default function LoginPage() {
     mockLogin(email);
   };
 
+  /* 소셜 로그인 - 추후 연동 시 주석 해제
   const handleSocialLogin = (provider: "kakao" | "google") => {
     const name = provider === "kakao" ? "카카오 사용자" : "Google User";
     const email = provider === "kakao" ? "kakao@staylog.kr" : "google@staylog.kr";
@@ -74,6 +85,7 @@ export default function LoginPage() {
     showToast(`${provider === "kakao" ? "카카오" : "Google"}로 로그인되었습니다`, "success");
     router.push("/");
   };
+  */
 
   const handleGuestLogin = () => {
     setUser({ id: "guest-01", email: "guest@staylog.kr", name: "게스트", role: "user" });
@@ -130,6 +142,7 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* 소셜 로그인 - 추후 연동 시 주석 해제
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200" />
@@ -164,6 +177,7 @@ export default function LoginPage() {
               Google
             </button>
           </div>
+          */}
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -195,11 +209,8 @@ export default function LoginPage() {
             </span>
           </div>
         </div>
-
-        <p className="text-[11px] text-text-secondary text-center mt-4">
-          아무 이메일/비밀번호로 로그인 가능합니다
-        </p>
       </div>
+      <Toast />
     </div>
   );
 }

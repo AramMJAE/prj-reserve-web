@@ -26,6 +26,7 @@ CREATE TABLE reservations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   stay_id UUID REFERENCES stays(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_name VARCHAR(50),
   check_in DATE NOT NULL,
   check_out DATE NOT NULL,
   guests INTEGER DEFAULT 1,
@@ -39,6 +40,7 @@ CREATE TABLE reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   stay_id UUID REFERENCES stays(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_name VARCHAR(50),
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
   content TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { StayFilter, SortOption } from "@/types";
+import { toggleWishlistItem, getWishlistIds, isSupabaseUser } from "@/lib/user-api";
 
 interface SearchState {
   region: string;
@@ -75,11 +76,17 @@ export const useStore = create<AppState>((set) => ({
   wishlistIds: [],
   toggleWishlist: (stayId) => {
     set((state) => {
-      const next = state.wishlistIds.includes(stayId)
+      const currentlyWished = state.wishlistIds.includes(stayId);
+      const next = currentlyWished
         ? state.wishlistIds.filter((id) => id !== stayId)
         : [...state.wishlistIds, stayId];
       if (typeof window !== "undefined") {
         localStorage.setItem("staylog_wishlist", JSON.stringify(next));
+      }
+      // Supabase 비동기 동기화
+      const userId = state.user?.id;
+      if (userId && isSupabaseUser(userId)) {
+        toggleWishlistItem(stayId, userId, currentlyWished);
       }
       return { wishlistIds: next };
     });
@@ -90,6 +97,23 @@ export const useStore = create<AppState>((set) => ({
       if (saved) {
         try {
           set({ wishlistIds: JSON.parse(saved) });
+        } catch {
+          // ignore
+        }
+      }
+      // Supabase 유저라면 서버에서 찜 목록 로드
+      const userStr = localStorage.getItem("staylog_user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user?.id && isSupabaseUser(user.id)) {
+            getWishlistIds(user.id).then((ids) => {
+              if (ids.length > 0) {
+                set({ wishlistIds: ids });
+                localStorage.setItem("staylog_wishlist", JSON.stringify(ids));
+              }
+            });
+          }
         } catch {
           // ignore
         }

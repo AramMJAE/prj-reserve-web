@@ -8,9 +8,9 @@ import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import Toast from "@/components/common/Toast";
 import { mockReservations } from "@/data/mock-reservations";
-import { mockStays } from "@/data/mock-stays";
 import { formatPrice, formatDate, calculateNights } from "@/lib/utils";
 import { getSimilarStays, getStayById } from "@/lib/stays-api";
+import { getReservationById, updateReservation } from "@/lib/user-api";
 import { useStore } from "@/store/useStore";
 import type { Stay, Reservation } from "@/types";
 
@@ -61,7 +61,7 @@ const timelineSteps = [
 export default function ReservationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { showToast } = useStore();
+  const { showToast, user } = useStore();
 
   const [localStatus, setLocalStatus] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -74,37 +74,38 @@ export default function ReservationDetailPage() {
   const [stay, setStay] = useState<Stay | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // mock + localStorage에서 예약 찾기
+  // Supabase + mock + localStorage에서 예약 찾기
   useEffect(() => {
     const id = params.id as string;
-    let found = mockReservations.find((r) => r.id === id) || null;
+    const userId = user?.id || "";
 
-    if (!found && typeof window !== "undefined") {
-      const saved: Reservation[] = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
-      found = saved.find((r) => r.id === id) || null;
-    }
+    const loadReservation = async () => {
+      // 1) Supabase / localStorage에서 조회
+      let found = await getReservationById(id, userId);
 
-    if (found) {
-      setReservation(found);
-      setModifyGuests(found.guests);
-      setModifyCheckIn(found.check_in.split("T")[0]);
-      setModifyCheckOut(found.check_out.split("T")[0]);
-
-      // 숙소 정보 가져오기
-      const mockStay = mockStays.find((s) => s.id === found!.stay_id);
-      if (mockStay) {
-        setStay(mockStay);
-        getSimilarStays(mockStay, 3).then(setSimilarStays);
-      } else {
-        getStayById(found.stay_id).then((s) => {
-          if (s) {
-            setStay(s);
-            getSimilarStays(s, 3).then(setSimilarStays);
-          }
-        });
+      // 2) mock fallback
+      if (!found) {
+        found = mockReservations.find((r) => r.id === id) || null;
       }
-    }
-    setLoading(false);
+
+      if (found) {
+        setReservation(found);
+        setModifyGuests(found.guests);
+        setModifyCheckIn(found.check_in.split("T")[0]);
+        setModifyCheckOut(found.check_out.split("T")[0]);
+
+        // 숙소 정보 가져오기
+        const s = await getStayById(found.stay_id);
+        if (s) {
+          setStay(s);
+          getSimilarStays(s, 3).then(setSimilarStays);
+        }
+      }
+      setLoading(false);
+    };
+
+    loadReservation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   if (loading) {
@@ -148,30 +149,21 @@ export default function ReservationDetailPage() {
   const canModify = currentStatus === "pending" || currentStatus === "confirmed";
   const nights = calculateNights(new Date(reservation.check_in), new Date(reservation.check_out));
 
-  const updateReservationInStorage = (updates: Partial<Reservation>) => {
-    const saved: Reservation[] = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
-    const idx = saved.findIndex((r) => r.id === reservation.id);
-    if (idx !== -1) {
-      saved[idx] = { ...saved[idx], ...updates };
-      localStorage.setItem("staylog_reservations", JSON.stringify(saved));
-    }
-  };
-
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    await updateReservation(reservation.id, user?.id || "", { status: "cancelled" });
     setLocalStatus("cancelled");
-    updateReservationInStorage({ status: "cancelled" });
     setShowCancelModal(false);
     showToast("예약이 취소되었습니다", "info");
   };
 
-  const handleModify = () => {
+  const handleModify = async () => {
     const newNights = calculateNights(new Date(modifyCheckIn), new Date(modifyCheckOut));
     if (newNights <= 0) {
       showToast("올바른 날짜를 선택해주세요", "error");
       return;
     }
     const newTotal = stay.price * newNights;
-    updateReservationInStorage({
+    await updateReservation(reservation.id, user?.id || "", {
       check_in: modifyCheckIn,
       check_out: modifyCheckOut,
       guests: modifyGuests,

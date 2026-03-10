@@ -10,6 +10,7 @@ import ScrollToTop from "@/components/common/ScrollToTop";
 import { mockReviews } from "@/data/mock-reviews";
 import { mockReservations } from "@/data/mock-reservations";
 import { getStayById } from "@/lib/stays-api";
+import { createReservation, createReview, getReviewsByStay, deleteReview, checkAvailability, getBookedDateRanges } from "@/lib/user-api";
 import { formatPrice, formatDate, calculateNights } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { DayPicker, DateRange } from "react-day-picker";
@@ -46,6 +47,12 @@ export default function StayDetailPage() {
   const [currentImage, setCurrentImage] = useState(0);
   const [showMobileReserve, setShowMobileReserve] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "kakao" | "toss">("card");
 
   // Review form
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -56,15 +63,17 @@ export default function StayDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      getStayById(params.id as string).then((data) => {
+      getStayById(params.id as string).then(async (data) => {
         setStay(data);
         if (data) {
           addRecentlyViewed(data.id);
-          const reviews = mockReviews.filter((r) => r.stay_id === data.id || r.stay_id === params.id);
-          // localStorage에 저장된 리뷰도 합침
-          const savedReviews = JSON.parse(localStorage.getItem("staylog_reviews") || "[]");
-          const localSaved = savedReviews.filter((r: { stay_id: string }) => r.stay_id === data.id || r.stay_id === params.id);
-          setLocalReviews([...localSaved, ...reviews]);
+          // Supabase 리뷰 + mock 리뷰 + localStorage 리뷰 통합
+          const supabaseReviews = await getReviewsByStay(data.id);
+          const mockFiltered = mockReviews.filter((r) => r.stay_id === data.id || r.stay_id === params.id);
+          // 중복 제거 (Supabase에 이미 있는 건 mock/local에서 제외)
+          const existingIds = new Set(supabaseReviews.map((r) => r.id));
+          const uniqueMock = mockFiltered.filter((r) => !existingIds.has(r.id));
+          setLocalReviews([...supabaseReviews, ...uniqueMock]);
         }
         setStayLoading(false);
       });
@@ -77,12 +86,13 @@ export default function StayDetailPage() {
   const touchEndX = useRef<number | null>(null);
 
   // 기존 예약된 날짜들을 비활성화
-  const bookedDates = useMemo(() => {
-    if (!stay) return [];
-    const dates: Date[] = [];
-    mockReservations
-      .filter((r) => r.stay_id === stay.id && (r.status === "confirmed" || r.status === "pending"))
-      .forEach((r) => {
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
+
+  useEffect(() => {
+    if (!stay) return;
+    getBookedDateRanges(stay.id).then((ranges) => {
+      const dates: Date[] = [];
+      ranges.forEach((r) => {
         const start = new Date(r.check_in);
         const end = new Date(r.check_out);
         const current = new Date(start);
@@ -91,7 +101,20 @@ export default function StayDetailPage() {
           current.setDate(current.getDate() + 1);
         }
       });
-    return dates;
+      // mock 예약도 합침
+      mockReservations
+        .filter((r) => r.stay_id === stay.id && (r.status === "confirmed" || r.status === "pending"))
+        .forEach((r) => {
+          const start = new Date(r.check_in);
+          const end = new Date(r.check_out);
+          const current = new Date(start);
+          while (current < end) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+          }
+        });
+      setBookedDates(dates);
+    });
   }, [stay]);
 
   const nights = useMemo(() => {
@@ -102,6 +125,13 @@ export default function StayDetailPage() {
   }, [selectedRange]);
 
   const totalPrice = stay ? nights * stay.price : 0;
+
+  // 실제 리뷰 기반 평균 평점 계산
+  const averageRating = useMemo(() => {
+    if (localReviews.length === 0) return stay?.rating || 0;
+    const sum = localReviews.reduce((acc, r) => acc + r.rating, 0);
+    return Math.round((sum / localReviews.length) * 10) / 10;
+  }, [localReviews, stay?.rating]);
 
   const sortedReviews = useMemo(() => {
     const sorted = [...localReviews];
@@ -174,6 +204,10 @@ export default function StayDetailPage() {
       showToast("날짜를 선택해주세요", "error");
       return;
     }
+    if (totalPrice <= 0) {
+      showToast("1박 이상 날짜를 선택해주세요", "error");
+      return;
+    }
     if (guests < 1) {
       showToast("인원을 선택해주세요", "error");
       return;
@@ -183,28 +217,56 @@ export default function StayDetailPage() {
       router.push("/auth/login");
       return;
     }
-    // 예약 생성 후 확인 페이지로 이동
-    const reservationId = `rsv-${Date.now()}`;
-    const reservationData = {
-      id: reservationId,
-      stay_id: stay.id,
-      user_id: user.id,
-      check_in: selectedRange.from.toISOString().split("T")[0],
-      check_out: selectedRange.to.toISOString().split("T")[0],
-      guests,
-      total_price: totalPrice,
-      status: "confirmed" as const,
-      created_at: new Date().toISOString(),
-    };
-    // localStorage에 예약 저장 (Supabase 미연동 시 fallback)
-    const saved = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
-    saved.push(reservationData);
-    localStorage.setItem("staylog_reservations", JSON.stringify(saved));
-    showToast("예약이 완료되었습니다!", "success");
-    router.push(`/reservation/${reservationId}`);
+    setShowPayment(true);
   };
 
-  const handleReviewSubmit = () => {
+  const handlePaymentComplete = async () => {
+    if (paymentMethod === "card") {
+      if (!cardNumber || cardNumber.replace(/\s/g, "").length < 16) {
+        showToast("카드번호를 정확히 입력해주세요", "error");
+        return;
+      }
+      if (!cardExpiry || cardExpiry.length < 5) {
+        showToast("유효기간을 입력해주세요", "error");
+        return;
+      }
+      if (!cardCvc || cardCvc.length < 3) {
+        showToast("CVC를 입력해주세요", "error");
+        return;
+      }
+    }
+
+    setPaymentProcessing(true);
+
+    // 중복 예약 체크
+    const checkIn = selectedRange!.from!.toISOString().split("T")[0];
+    const checkOut = selectedRange!.to!.toISOString().split("T")[0];
+    const available = await checkAvailability(stay.id, checkIn, checkOut);
+    if (!available) {
+      setPaymentProcessing(false);
+      showToast("선택한 날짜에 이미 예약이 있습니다. 다른 날짜를 선택해주세요.", "error");
+      return;
+    }
+
+    // 결제 처리 시뮬레이션
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const result = await createReservation({
+      stay_id: stay.id,
+      user_id: user!.id,
+      user_name: user!.name,
+      check_in: selectedRange!.from!.toISOString().split("T")[0],
+      check_out: selectedRange!.to!.toISOString().split("T")[0],
+      guests,
+      total_price: totalPrice,
+    });
+    setPaymentProcessing(false);
+    setShowPayment(false);
+    showToast("결제가 완료되었습니다!", "success");
+    router.push(`/reservation/${result.id}`);
+  };
+
+  const handleReviewSubmit = async () => {
     if (!user) {
       showToast("로그인이 필요합니다", "error");
       return;
@@ -213,8 +275,15 @@ export default function StayDetailPage() {
       showToast("리뷰 내용을 입력해주세요", "error");
       return;
     }
+    const result = await createReview({
+      stay_id: stay.id,
+      user_id: user.id,
+      rating: reviewRating,
+      content: reviewContent,
+      user_name: user.name,
+    });
     const newReview = {
-      id: `rev-local-${Date.now()}`,
+      id: result.id,
       stay_id: stay.id,
       user_id: user.id,
       rating: reviewRating,
@@ -224,10 +293,6 @@ export default function StayDetailPage() {
       user_image: "",
     };
     setLocalReviews([newReview, ...localReviews]);
-    // localStorage에 저장
-    const savedReviews = JSON.parse(localStorage.getItem("staylog_reviews") || "[]");
-    savedReviews.unshift(newReview);
-    localStorage.setItem("staylog_reviews", JSON.stringify(savedReviews));
     setReviewContent("");
     setReviewRating(5);
     setShowReviewForm(false);
@@ -340,8 +405,8 @@ export default function StayDetailPage() {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="text-accent">
                       <path d="M8 1l2 4.1 4.5.7-3.3 3.2.8 4.5L8 11.3 3.9 13.5l.8-4.5L1.5 5.8 6 5.1 8 1z" />
                     </svg>
-                    <span className="font-semibold">{stay.rating}</span>
-                    <span className="text-text-secondary">({stay.review_count}개 리뷰)</span>
+                    <span className="font-semibold">{averageRating}</span>
+                    <span className="text-text-secondary">({localReviews.length}개 리뷰)</span>
                   </span>
                   <span className="text-text-secondary">·</span>
                   <span className="text-[14px] text-text-secondary">최대 {stay.max_guests}인</span>
@@ -490,10 +555,10 @@ export default function StayDetailPage() {
                 {localReviews.length > 0 && (
                   <div className="flex items-center gap-6 sm:gap-8 mb-8 p-5 sm:p-6 bg-bg-off rounded-card">
                     <div className="text-center shrink-0">
-                      <p className="text-[32px] sm:text-[36px] font-bold text-primary">{stay.rating}</p>
+                      <p className="text-[32px] sm:text-[36px] font-bold text-primary">{averageRating}</p>
                       <div className="flex gap-0.5 mt-1 justify-center">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <svg key={star} width="14" height="14" viewBox="0 0 14 14" fill={star <= Math.round(stay.rating) ? "#C8A882" : "#ddd"}>
+                          <svg key={star} width="14" height="14" viewBox="0 0 14 14" fill={star <= Math.round(averageRating) ? "#C8A882" : "#ddd"}>
                             <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.4 3.3 12.3l.7-4.1-3-2.9 4.2-.7L7 1z" />
                           </svg>
                         ))}
@@ -545,7 +610,24 @@ export default function StayDetailPage() {
                           </div>
                           <span className="text-[14px] font-medium text-primary">{review.user_name}</span>
                         </div>
-                        <span className="text-[12px] text-text-secondary">{formatDate(review.created_at)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] text-text-secondary">{formatDate(review.created_at)}</span>
+                          {user && review.user_id === user.id && (
+                            <button
+                              onClick={async () => {
+                                await deleteReview(review.id, user.id);
+                                setLocalReviews((prev) => prev.filter((r) => r.id !== review.id));
+                                showToast("리뷰가 삭제되었습니다", "info");
+                              }}
+                              className="text-text-secondary hover:text-error transition-colors"
+                              title="삭제"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex gap-0.5 mb-2">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -743,6 +825,163 @@ export default function StayDetailPage() {
       )}
 
       {/* Share Modal */}
+      {/* Payment Modal */}
+      {showPayment && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center animate-fade-in" onClick={() => !paymentProcessing && setShowPayment(false)}>
+          <div className="relative bg-white rounded-modal w-[90%] max-w-md max-h-[90vh] overflow-y-auto animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-100 rounded-t-modal">
+              <h3 className="text-[18px] font-semibold text-primary">결제하기</h3>
+              <button onClick={() => !paymentProcessing && setShowPayment(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M5 5l10 10M15 5L5 15" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* 예약 요약 */}
+              <div className="bg-bg-off rounded-card p-4">
+                <p className="text-[15px] font-semibold text-primary mb-2">{stay.name}</p>
+                <div className="text-[13px] text-text-secondary space-y-1">
+                  <p>{selectedRange?.from?.toLocaleDateString("ko-KR")} ~ {selectedRange?.to?.toLocaleDateString("ko-KR")} · {nights}박</p>
+                  <p>게스트 {guests}명</p>
+                </div>
+                <div className="flex justify-between mt-3 pt-3 border-t border-gray-200">
+                  <span className="text-[15px] font-semibold text-primary">총 결제금액</span>
+                  <span className="text-[18px] font-bold text-primary">{formatPrice(totalPrice)}</span>
+                </div>
+              </div>
+
+              {/* 결제 수단 선택 */}
+              <div>
+                <p className="text-[13px] font-semibold text-text-secondary mb-3">결제 수단</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { key: "card" as const, label: "신용카드", icon: "M2 5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zM2 9h20" },
+                    { key: "kakao" as const, label: "카카오페이", icon: "" },
+                    { key: "toss" as const, label: "토스페이", icon: "" },
+                  ]).map((method) => (
+                    <button
+                      key={method.key}
+                      onClick={() => setPaymentMethod(method.key)}
+                      className={`py-3 px-2 rounded-card border text-center transition-all ${
+                        paymentMethod === method.key
+                          ? "border-accent bg-secondary/50 text-primary"
+                          : "border-gray-200 text-text-secondary hover:border-gray-300"
+                      }`}
+                    >
+                      {method.key === "kakao" ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill={paymentMethod === "kakao" ? "#3C1E1E" : "#999"}>
+                            <path d="M12 3C6.5 3 2 6.58 2 11c0 2.83 1.87 5.32 4.68 6.73l-.96 3.57c-.07.26.22.46.44.31L10 19.12c.65.09 1.32.13 2 .13 5.5 0 10-3.58 10-8.25S17.5 3 12 3z" />
+                          </svg>
+                          <span className="text-[11px] font-medium">{method.label}</span>
+                        </div>
+                      ) : method.key === "toss" ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={paymentMethod === "toss" ? "#1A1A1A" : "#999"} strokeWidth="1.5">
+                            <rect x="2" y="6" width="20" height="12" rx="2" />
+                            <path d="M12 10v4M10 12h4" />
+                          </svg>
+                          <span className="text-[11px] font-medium">{method.label}</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={paymentMethod === "card" ? "#1A1A1A" : "#999"} strokeWidth="1.5" strokeLinecap="round">
+                            <path d={method.icon} />
+                          </svg>
+                          <span className="text-[11px] font-medium">{method.label}</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 카드 입력 폼 */}
+              {paymentMethod === "card" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-text-secondary mb-1.5">카드번호</label>
+                    <input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "").slice(0, 16);
+                        setCardNumber(v.replace(/(\d{4})(?=\d)/g, "$1 "));
+                      }}
+                      placeholder="0000 0000 0000 0000"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent transition-colors tracking-wider"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12px] font-medium text-text-secondary mb-1.5">유효기간</label>
+                      <input
+                        type="text"
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          setCardExpiry(v.length >= 3 ? v.slice(0, 2) + "/" + v.slice(2) : v);
+                        }}
+                        placeholder="MM/YY"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-medium text-text-secondary mb-1.5">CVC</label>
+                      <input
+                        type="password"
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        placeholder="000"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 간편결제 안내 */}
+              {paymentMethod !== "card" && (
+                <div className="text-center py-6 bg-bg-off rounded-card">
+                  <p className="text-[14px] text-text-secondary">
+                    {paymentMethod === "kakao" ? "카카오페이" : "토스페이"}로 결제합니다
+                  </p>
+                  <p className="text-[12px] text-text-secondary mt-1">(테스트 결제 - 실제 결제되지 않습니다)</p>
+                </div>
+              )}
+
+              {/* 테스트 안내 */}
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-yellow-50 rounded-card">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="1.5" className="shrink-0 mt-0.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v4M12 16h.01" />
+                </svg>
+                <p className="text-[12px] text-yellow-700">테스트 결제입니다. 실제 결제가 이루어지지 않으며, 아무 카드번호나 입력 가능합니다.</p>
+              </div>
+
+              {/* 결제 버튼 */}
+              <button
+                onClick={handlePaymentComplete}
+                disabled={paymentProcessing}
+                className="w-full bg-primary text-white py-3.5 rounded-button text-[15px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {paymentProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    결제 처리 중...
+                  </>
+                ) : (
+                  `${formatPrice(totalPrice)} 결제하기`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} stay={stay} />
 
       {/* Similar Stays */}

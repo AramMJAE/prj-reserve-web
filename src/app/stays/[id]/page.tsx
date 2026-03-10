@@ -691,6 +691,7 @@ export default function StayDetailPage() {
                   disabled={[{ before: new Date() }, ...bookedDates]}
                   numberOfMonths={1}
                   locale={ko}
+                  labels={koLabels}
                   className="!font-sans mx-auto"
                   modifiersStyles={{
                     disabled: { color: "#ccc", textDecoration: "line-through" },

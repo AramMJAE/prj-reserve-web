@@ -23,10 +23,95 @@ const statusMap = {
 };
 
 export default function AdminPage() {
-  const { user } = useStore();
+  const { user, showToast } = useStore();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [editStay, setEditStay] = useState<Stay | null>(null);
   const [showStayModal, setShowStayModal] = useState(false);
+
+  // localStorage에서 관리자 수정/추가/삭제 데이터 관리
+  const [adminStays, setAdminStays] = useState<Stay[]>(() => {
+    if (typeof window === "undefined") return mockStays;
+    const deleted: string[] = JSON.parse(localStorage.getItem("staylog_admin_deleted") || "[]");
+    const edits: Record<string, Partial<Stay>> = JSON.parse(localStorage.getItem("staylog_admin_edits") || "{}");
+    const added: Stay[] = JSON.parse(localStorage.getItem("staylog_admin_added") || "[]");
+    let stays = mockStays.filter((s) => !deleted.includes(s.id));
+    stays = stays.map((s) => edits[s.id] ? { ...s, ...edits[s.id] } : s);
+    return [...stays, ...added];
+  });
+
+  const [adminReservations, setAdminReservations] = useState(() => {
+    const localSaved = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("staylog_reservations") || "[]")
+      : [];
+    return [...mockReservations, ...localSaved];
+  });
+
+  const saveStay = (formData: Partial<Stay>) => {
+    if (editStay) {
+      // 수정
+      const edits: Record<string, Partial<Stay>> = JSON.parse(localStorage.getItem("staylog_admin_edits") || "{}");
+      edits[editStay.id] = { ...edits[editStay.id], ...formData };
+      localStorage.setItem("staylog_admin_edits", JSON.stringify(edits));
+      setAdminStays((prev) => prev.map((s) => s.id === editStay.id ? { ...s, ...formData } : s));
+      showToast("숙소가 수정되었습니다", "success");
+    } else {
+      // 등록
+      const newStay: Stay = {
+        id: `stay-admin-${Date.now()}`,
+        name: formData.name || "새 숙소",
+        description: formData.description || "",
+        category: (formData.category as Stay["category"]) || "펜션",
+        region: (formData.region as Stay["region"]) || "제주",
+        address: formData.address || "",
+        latitude: 33.45,
+        longitude: 126.57,
+        price: formData.price || 100000,
+        max_guests: formData.max_guests || 4,
+        images: ["https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"],
+        amenities: ["와이파이", "주차", "에어컨"],
+        host_name: "관리자",
+        host_image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100",
+        rating: 0,
+        review_count: 0,
+        created_at: new Date().toISOString(),
+      };
+      const added: Stay[] = JSON.parse(localStorage.getItem("staylog_admin_added") || "[]");
+      added.push(newStay);
+      localStorage.setItem("staylog_admin_added", JSON.stringify(added));
+      setAdminStays((prev) => [...prev, newStay]);
+      showToast("숙소가 등록되었습니다", "success");
+    }
+    setShowStayModal(false);
+  };
+
+  const deleteStay = (stayId: string) => {
+    const deleted: string[] = JSON.parse(localStorage.getItem("staylog_admin_deleted") || "[]");
+    if (!deleted.includes(stayId)) {
+      deleted.push(stayId);
+      localStorage.setItem("staylog_admin_deleted", JSON.stringify(deleted));
+    }
+    // admin에서 추가한 숙소면 added에서도 제거
+    const added: Stay[] = JSON.parse(localStorage.getItem("staylog_admin_added") || "[]");
+    const filtered = added.filter((s) => s.id !== stayId);
+    localStorage.setItem("staylog_admin_added", JSON.stringify(filtered));
+
+    setAdminStays((prev) => prev.filter((s) => s.id !== stayId));
+    showToast("숙소가 삭제되었습니다", "info");
+  };
+
+  const updateReservationStatus = (rsvId: string, newStatus: string) => {
+    // localStorage 예약 업데이트
+    const saved = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
+    const idx = saved.findIndex((r: { id: string }) => r.id === rsvId);
+    if (idx !== -1) {
+      saved[idx].status = newStatus;
+      localStorage.setItem("staylog_reservations", JSON.stringify(saved));
+    }
+    setAdminReservations((prev: typeof mockReservations) =>
+      prev.map((r) => r.id === rsvId ? { ...r, status: newStatus } : r)
+    );
+    showToast("예약 상태가 변경되었습니다", "success");
+  };
 
   // 관리자 권한 체크
   if (!user) {
@@ -79,24 +164,26 @@ export default function AdminPage() {
 
   // Dashboard stats
   const stats = [
-    { label: "총 숙소", value: mockStays.length, unit: "개" },
-    { label: "총 예약", value: mockReservations.length, unit: "건" },
+    { label: "총 숙소", value: adminStays.length, unit: "개" },
+    { label: "총 예약", value: adminReservations.length, unit: "건" },
     { label: "총 리뷰", value: mockReviews.length, unit: "개" },
     {
       label: "평균 평점",
-      value: (mockStays.reduce((acc, s) => acc + s.rating, 0) / mockStays.length).toFixed(1),
+      value: adminStays.length > 0
+        ? (adminStays.reduce((acc, s) => acc + s.rating, 0) / adminStays.length).toFixed(1)
+        : "0",
       unit: "점",
     },
   ];
 
   const categoryStats = ["한옥", "펜션", "호텔", "게스트하우스"].map((cat) => ({
     category: cat,
-    count: mockStays.filter((s) => s.category === cat).length,
+    count: adminStays.filter((s) => s.category === cat).length,
   }));
 
   const regionStats = ["제주", "강원", "경상", "전라", "서울", "경기"].map((r) => ({
     region: r,
-    count: mockStays.filter((s) => s.region === r).length,
+    count: adminStays.filter((s) => s.region === r).length,
   }));
 
   return (
@@ -165,7 +252,7 @@ export default function AdminPage() {
                           <div
                             className="h-full bg-accent/70 rounded"
                             style={{
-                              width: `${(cs.count / mockStays.length) * 100}%`,
+                              width: `${adminStays.length > 0 ? (cs.count / adminStays.length) * 100 : 0}%`,
                             }}
                           />
                         </div>
@@ -192,7 +279,7 @@ export default function AdminPage() {
                           <div
                             className="h-full bg-primary/30 rounded"
                             style={{
-                              width: `${(rs.count / mockStays.length) * 100}%`,
+                              width: `${adminStays.length > 0 ? (rs.count / adminStays.length) * 100 : 0}%`,
                             }}
                           />
                         </div>
@@ -212,7 +299,7 @@ export default function AdminPage() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <p className="text-[14px] text-text-secondary">
-                  총 {mockStays.length}개 숙소
+                  총 {adminStays.length}개 숙소
                 </p>
                 <button
                   onClick={() => {
@@ -251,7 +338,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mockStays.map((stay) => (
+                      {adminStays.map((stay) => (
                         <tr
                           key={stay.id}
                           className="border-b border-gray-50 last:border-0 hover:bg-bg-off/50"
@@ -296,7 +383,14 @@ export default function AdminPage() {
                               >
                                 수정
                               </button>
-                              <button className="text-[12px] text-error hover:underline">
+                              <button
+                                onClick={() => {
+                                  if (confirm(`"${stay.name}" 숙소를 삭제하시겠습니까?`)) {
+                                    deleteStay(stay.id);
+                                  }
+                                }}
+                                className="text-[12px] text-error hover:underline"
+                              >
                                 삭제
                               </button>
                             </div>
@@ -314,14 +408,14 @@ export default function AdminPage() {
           {activeTab === "reservations" && (
             <div>
               <p className="text-[14px] text-text-secondary mb-6">
-                총 {mockReservations.length}건 예약
+                총 {adminReservations.length}건 예약
               </p>
 
               <div className="space-y-3">
-                {mockReservations.map((rsv) => {
-                  const stay = mockStays.find((s) => s.id === rsv.stay_id);
-                  if (!stay) return null;
-                  const status = statusMap[rsv.status];
+                {adminReservations.map((rsv) => {
+                  const rsvStay = adminStays.find((s) => s.id === rsv.stay_id) || mockStays.find((s) => s.id === rsv.stay_id);
+                  if (!rsvStay) return null;
+                  const status = statusMap[rsv.status as keyof typeof statusMap];
 
                   return (
                     <div
@@ -331,15 +425,15 @@ export default function AdminPage() {
                       <div className="flex items-center gap-4">
                         <div className="relative w-12 h-12 rounded overflow-hidden shrink-0">
                           <Image
-                            src={stay.images[0]}
-                            alt={stay.name}
+                            src={rsvStay.images[0]}
+                            alt={rsvStay.name}
                             fill
                             className="object-cover"
                           />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-medium text-primary">
-                            {stay.name}
+                            {rsvStay.name}
                           </h3>
                           <p className="text-[13px] text-text-secondary">
                             {rsv.check_in} ~ {rsv.check_out} · {rsv.guests}명
@@ -355,7 +449,8 @@ export default function AdminPage() {
                           {status.label}
                         </span>
                         <select
-                          defaultValue={rsv.status}
+                          value={rsv.status}
+                          onChange={(e) => updateReservationStatus(rsv.id, e.target.value)}
                           className="text-[12px] border border-gray-200 rounded px-2 py-1 outline-none"
                         >
                           <option value="pending">대기중</option>
@@ -390,21 +485,37 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+              <form className="space-y-4" onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                saveStay({
+                  name: fd.get("name") as string,
+                  category: fd.get("category") as Stay["category"],
+                  region: fd.get("region") as Stay["region"],
+                  price: Number(fd.get("price")) || 100000,
+                  max_guests: Number(fd.get("max_guests")) || 4,
+                  address: fd.get("address") as string,
+                  description: fd.get("description") as string,
+                });
+              }}>
                 <div>
                   <label className="block text-[13px] font-medium text-text-secondary mb-1">숙소명</label>
                   <input
+                    name="name"
                     defaultValue={editStay?.name || ""}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent"
                     placeholder="숙소 이름을 입력하세요"
+                    required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[13px] font-medium text-text-secondary mb-1">카테고리</label>
                     <select
+                      name="category"
                       defaultValue={editStay?.category || ""}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none"
+                      required
                     >
                       <option value="">선택</option>
                       <option value="한옥">한옥</option>
@@ -416,8 +527,10 @@ export default function AdminPage() {
                   <div>
                     <label className="block text-[13px] font-medium text-text-secondary mb-1">지역</label>
                     <select
+                      name="region"
                       defaultValue={editStay?.region || ""}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none"
+                      required
                     >
                       <option value="">선택</option>
                       <option value="제주">제주</option>
@@ -433,25 +546,30 @@ export default function AdminPage() {
                   <div>
                     <label className="block text-[13px] font-medium text-text-secondary mb-1">1박 가격</label>
                     <input
+                      name="price"
                       type="number"
                       defaultValue={editStay?.price || ""}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent"
                       placeholder="100000"
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-[13px] font-medium text-text-secondary mb-1">최대 인원</label>
                     <input
+                      name="max_guests"
                       type="number"
                       defaultValue={editStay?.max_guests || ""}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent"
                       placeholder="4"
+                      required
                     />
                   </div>
                 </div>
                 <div>
                   <label className="block text-[13px] font-medium text-text-secondary mb-1">주소</label>
                   <input
+                    name="address"
                     defaultValue={editStay?.address || ""}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent"
                     placeholder="상세 주소를 입력하세요"
@@ -460,6 +578,7 @@ export default function AdminPage() {
                 <div>
                   <label className="block text-[13px] font-medium text-text-secondary mb-1">숙소 소개</label>
                   <textarea
+                    name="description"
                     defaultValue={editStay?.description || ""}
                     rows={4}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-button text-[14px] outline-none focus:border-accent resize-none"
@@ -477,7 +596,6 @@ export default function AdminPage() {
                   </button>
                   <button
                     type="submit"
-                    onClick={() => setShowStayModal(false)}
                     className="flex-1 py-2.5 bg-primary text-white rounded-button text-[14px] font-medium hover:bg-primary/90 transition-colors"
                   >
                     {editStay ? "수정하기" : "등록하기"}

@@ -148,13 +148,42 @@ export default function ReservationDetailPage() {
   const canModify = currentStatus === "pending" || currentStatus === "confirmed";
   const nights = calculateNights(new Date(reservation.check_in), new Date(reservation.check_out));
 
+  const updateReservationInStorage = (updates: Partial<Reservation>) => {
+    const saved: Reservation[] = JSON.parse(localStorage.getItem("staylog_reservations") || "[]");
+    const idx = saved.findIndex((r) => r.id === reservation.id);
+    if (idx !== -1) {
+      saved[idx] = { ...saved[idx], ...updates };
+      localStorage.setItem("staylog_reservations", JSON.stringify(saved));
+    }
+  };
+
   const handleCancel = () => {
     setLocalStatus("cancelled");
+    updateReservationInStorage({ status: "cancelled" });
     setShowCancelModal(false);
     showToast("예약이 취소되었습니다", "info");
   };
 
   const handleModify = () => {
+    const newNights = calculateNights(new Date(modifyCheckIn), new Date(modifyCheckOut));
+    if (newNights <= 0) {
+      showToast("올바른 날짜를 선택해주세요", "error");
+      return;
+    }
+    const newTotal = stay.price * newNights;
+    updateReservationInStorage({
+      check_in: modifyCheckIn,
+      check_out: modifyCheckOut,
+      guests: modifyGuests,
+      total_price: newTotal,
+    });
+    setReservation({
+      ...reservation,
+      check_in: modifyCheckIn,
+      check_out: modifyCheckOut,
+      guests: modifyGuests,
+      total_price: newTotal,
+    });
     setShowModifyModal(false);
     showToast("예약이 변경되었습니다", "success");
   };

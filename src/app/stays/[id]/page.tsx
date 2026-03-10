@@ -19,12 +19,14 @@ import CancellationPolicy from "@/components/detail/CancellationPolicy";
 import SimilarStays from "@/components/detail/SimilarStays";
 import PriceBreakdown from "@/components/detail/PriceBreakdown";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import ShareModal from "@/components/detail/ShareModal";
+import MapView from "@/components/detail/MapView";
 import type { Stay } from "@/types";
 
 export default function StayDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { wishlistIds, toggleWishlist, showToast, user } = useStore();
+  const { wishlistIds, toggleWishlist, showToast, user, addRecentlyViewed } = useStore();
 
   const [stay, setStay] = useState<Stay | null>(null);
   const [stayLoading, setStayLoading] = useState(true);
@@ -33,6 +35,7 @@ export default function StayDetailPage() {
   const [showAllImages, setShowAllImages] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [showMobileReserve, setShowMobileReserve] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Review form
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -46,12 +49,14 @@ export default function StayDetailPage() {
       getStayById(params.id as string).then((data) => {
         setStay(data);
         if (data) {
+          addRecentlyViewed(data.id);
           const reviews = mockReviews.filter((r) => r.stay_id === data.id || r.stay_id === params.id);
           setLocalReviews(reviews);
         }
         setStayLoading(false);
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   const isWished = stay ? wishlistIds.includes(stay.id) : false;
@@ -100,18 +105,9 @@ export default function StayDetailPage() {
     return sorted;
   }, [localReviews, reviewSort]);
 
-  const handleShare = useCallback(async () => {
-    if (!stay) return;
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: stay.name, url });
-      } catch { /* cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(url);
-      showToast("링크가 복사되었습니다", "success");
-    }
-  }, [stay, showToast]);
+  const handleShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
 
   const handleWishlistToggle = useCallback(() => {
     if (!stay) return;
@@ -389,23 +385,12 @@ export default function StayDetailPage() {
               </div>
 
               {/* Location */}
-              <div>
-                <h2 className="text-[18px] font-semibold text-primary mb-4">위치</h2>
-                <div className="bg-bg-off rounded-card p-5 border border-gray-100">
-                  <div className="flex items-start gap-3">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#C8A882" strokeWidth="1.5" className="shrink-0 mt-0.5">
-                      <path d="M10 18s-6-5.34-6-9a6 6 0 1112 0c0 3.66-6 9-6 9z" />
-                      <circle cx="10" cy="9" r="2" />
-                    </svg>
-                    <div>
-                      <p className="text-[14px] text-text-primary font-medium">{stay.address}</p>
-                      <p className="text-[13px] text-text-secondary mt-1">
-                        {stay.region} 지역
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MapView
+                latitude={stay.latitude}
+                longitude={stay.longitude}
+                name={stay.name}
+                address={stay.address}
+              />
 
               {/* Reviews */}
               <div>
@@ -718,6 +703,9 @@ export default function StayDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} stay={stay} />
 
       {/* Similar Stays */}
       <SimilarStays currentStay={stay} />

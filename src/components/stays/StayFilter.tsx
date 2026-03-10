@@ -52,8 +52,8 @@ export default function StayFilter({
   const searchParams = useSearchParams();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([
-    currentMinPrice || 50000,
-    currentMaxPrice || 350000,
+    currentMinPrice || 30000,
+    currentMaxPrice || 500000,
   ]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(currentAmenities);
 
@@ -69,9 +69,9 @@ export default function StayFilter({
 
   const applyAdvancedFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
-    if (priceRange[0] > 50000) params.set("minPrice", String(priceRange[0]));
+    if (priceRange[0] > 30000) params.set("minPrice", String(priceRange[0]));
     else params.delete("minPrice");
-    if (priceRange[1] < 350000) params.set("maxPrice", String(priceRange[1]));
+    if (priceRange[1] < 500000) params.set("maxPrice", String(priceRange[1]));
     else params.delete("maxPrice");
     if (selectedAmenities.length > 0) params.set("amenities", selectedAmenities.join(","));
     else params.delete("amenities");
@@ -81,7 +81,7 @@ export default function StayFilter({
 
   const clearAll = () => {
     router.push("/stays");
-    setPriceRange([50000, 350000]);
+    setPriceRange([30000, 500000]);
     setSelectedAmenities([]);
   };
 
@@ -181,35 +181,63 @@ export default function StayFilter({
           <div>
             <h4 className="text-[13px] font-semibold text-primary mb-3">가격 범위</h4>
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-[11px] text-text-secondary mb-1 block">최소</label>
-                  <input
-                    type="range"
-                    min={50000}
-                    max={350000}
-                    step={10000}
-                    value={priceRange[0]}
-                    onChange={(e) => setPriceRange([Number(e.target.value), Math.max(Number(e.target.value), priceRange[1])])}
-                    className="w-full accent-accent"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[11px] text-text-secondary mb-1 block">최대</label>
-                  <input
-                    type="range"
-                    min={50000}
-                    max={350000}
-                    step={10000}
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([Math.min(priceRange[0], Number(e.target.value)), Number(e.target.value)])}
-                    className="w-full accent-accent"
-                  />
-                </div>
+              {/* Quick Presets */}
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { label: "~10만", min: 30000, max: 100000 },
+                  { label: "10~20만", min: 100000, max: 200000 },
+                  { label: "20~30만", min: 200000, max: 300000 },
+                  { label: "30만~", min: 300000, max: 500000 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => setPriceRange([preset.min, preset.max])}
+                    className={cn(
+                      "px-3 py-1 rounded-button text-[12px] font-medium border transition-all",
+                      priceRange[0] === preset.min && priceRange[1] === preset.max
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-gray-200 text-text-secondary hover:border-gray-300"
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
-              <p className="text-[13px] text-text-secondary text-center">
-                {formatPrice(priceRange[0])} — {formatPrice(priceRange[1])}
-              </p>
+              {/* Dual Range Slider */}
+              <div className="relative pt-2 pb-1">
+                <div className="relative h-1.5 bg-gray-200 rounded-full">
+                  <div
+                    className="absolute h-full bg-accent rounded-full"
+                    style={{
+                      left: `${((priceRange[0] - 30000) / (500000 - 30000)) * 100}%`,
+                      right: `${100 - ((priceRange[1] - 30000) / (500000 - 30000)) * 100}%`,
+                    }}
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={30000}
+                  max={500000}
+                  step={10000}
+                  value={priceRange[0]}
+                  onChange={(e) => setPriceRange([Math.min(Number(e.target.value), priceRange[1] - 10000), priceRange[1]])}
+                  className="absolute top-1 w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-sm"
+                />
+                <input
+                  type="range"
+                  min={30000}
+                  max={500000}
+                  step={10000}
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([priceRange[0], Math.max(Number(e.target.value), priceRange[0] + 10000)])}
+                  className="absolute top-1 w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-sm"
+                />
+              </div>
+              <div className="flex justify-between text-[13px] text-text-secondary">
+                <span className="font-medium text-primary">{formatPrice(priceRange[0])}</span>
+                <span className="text-[12px]">—</span>
+                <span className="font-medium text-primary">{formatPrice(priceRange[1])}</span>
+              </div>
             </div>
           </div>
 

@@ -202,6 +202,34 @@ export default function Hero() {
             </div>
           )}
         </div>
+
+        {/* Trending Keywords */}
+        <div className="mt-6 animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/50">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[12px] text-white/50 tracking-wide">인기 검색</span>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { label: "제주 오션뷰", params: "region=제주&amenities=오션뷰" },
+              { label: "강원 독채 펜션", params: "region=강원&category=펜션&amenities=독채" },
+              { label: "서울 한옥", params: "region=서울&category=한옥" },
+              { label: "전라 감성 숙소", params: "region=전라" },
+              { label: "경기 가족 펜션", params: "region=경기&category=펜션" },
+              { label: "럭셔리 스파", params: "amenities=스파&minPrice=200000" },
+            ].map((keyword) => (
+              <button
+                key={keyword.label}
+                onClick={() => router.push(`/stays?${keyword.params}`)}
+                className="px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white/80 text-[12px] rounded-button border border-white/15 hover:bg-white/20 hover:text-white transition-all"
+              >
+                {keyword.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Scroll Indicator */}

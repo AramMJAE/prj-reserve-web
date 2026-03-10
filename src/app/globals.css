@@ -103,6 +103,25 @@ html {
   animation: heart-pop 0.3s ease-out;
 }
 
+@keyframes checkmark-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-checkmark {
+  stroke-dasharray: 24;
+  animation: checkmark-draw 0.4s ease-out 0.3s both;
+}
+
+/* Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Staggered animation delays */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }

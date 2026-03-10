@@ -17,6 +17,15 @@ const regions = [
   { value: "경기", label: "경기도" },
 ];
 
+const koLabels = {
+  labelMonthDropdown: () => "월 선택",
+  labelYearDropdown: () => "연도 선택",
+  labelNext: () => "다음 달로 이동",
+  labelPrevious: () => "이전 달로 이동",
+  labelNav: () => "달력 네비게이션",
+  labelGrid: (month: Date) => `${month.getFullYear()}년 ${month.getMonth() + 1}월`,
+};
+
 export default function Hero() {
   const router = useRouter();
   const { setSearch } = useStore();
@@ -199,6 +208,7 @@ export default function Hero() {
                 disabled={{ before: new Date() }}
                 numberOfMonths={typeof window !== "undefined" && window.innerWidth >= 640 ? 2 : 1}
                 locale={ko}
+                labels={koLabels}
                 className="!font-sans mx-auto"
               />
             </div>

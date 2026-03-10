@@ -24,6 +24,15 @@ import ShareModal from "@/components/detail/ShareModal";
 import MapView from "@/components/detail/MapView";
 import type { Stay } from "@/types";
 
+const koLabels = {
+  labelMonthDropdown: () => "월 선택",
+  labelYearDropdown: () => "연도 선택",
+  labelNext: () => "다음 달로 이동",
+  labelPrevious: () => "이전 달로 이동",
+  labelNav: () => "달력 네비게이션",
+  labelGrid: (month: Date) => `${month.getFullYear()}년 ${month.getMonth() + 1}월`,
+};
+
 export default function StayDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -161,17 +170,17 @@ export default function StayDetailPage() {
   }
 
   const handleReserve = () => {
-    if (!user) {
-      showToast("로그인이 필요합니다", "error");
-      router.push("/auth/login");
-      return;
-    }
     if (!selectedRange?.from || !selectedRange?.to) {
       showToast("날짜를 선택해주세요", "error");
       return;
     }
     if (guests < 1) {
       showToast("인원을 선택해주세요", "error");
+      return;
+    }
+    if (!user) {
+      showToast("로그인이 필요합니다", "error");
+      router.push("/auth/login");
       return;
     }
     // 예약 생성 후 확인 페이지로 이동
@@ -585,6 +594,7 @@ export default function StayDetailPage() {
                     disabled={[{ before: new Date() }, ...bookedDates.map((d) => d)]}
                     numberOfMonths={1}
                     locale={ko}
+                    labels={koLabels}
                     className="!font-sans"
                     modifiersStyles={{
                       disabled: { color: "#ccc", textDecoration: "line-through" },

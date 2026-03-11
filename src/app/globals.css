@@ -165,6 +165,28 @@ html {
   color: #333 !important;
 }
 
+/* Booked (unavailable) dates - red circle + translucent */
+.rdp-day_booked {
+  position: relative;
+  color: #d4646a !important;
+  opacity: 0.55;
+  text-decoration: line-through;
+  cursor: not-allowed !important;
+}
+
+.rdp-day_booked::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 2px solid #ef4444;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.rdp-day_booked:hover {
+  background-color: rgba(239, 68, 68, 0.06) !important;
+}
+
 /* Line clamp */
 .line-clamp-2 {
   display: -webkit-box;

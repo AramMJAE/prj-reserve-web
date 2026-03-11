@@ -673,14 +673,13 @@ export default function StayDetailPage() {
                     mode="range"
                     selected={selectedRange}
                     onSelect={setSelectedRange}
-                    disabled={[{ before: new Date() }, ...bookedDates.map((d) => d)]}
+                    disabled={[{ before: new Date() }, ...bookedDates]}
+                    modifiers={{ booked: bookedDates }}
+                    modifiersClassNames={{ booked: "rdp-day_booked" }}
                     numberOfMonths={1}
                     locale={ko}
                     labels={koLabels}
                     className="!font-sans"
-                    modifiersStyles={{
-                      disabled: { color: "#ccc", textDecoration: "line-through" },
-                    }}
                     styles={{
                       caption: { fontSize: "14px" },
                       day: { fontSize: "13px" },
@@ -688,7 +687,7 @@ export default function StayDetailPage() {
                   />
                   {bookedDates.length > 0 && (
                     <p className="text-[11px] text-text-secondary mt-1 flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 bg-gray-200 rounded-sm line-through text-[8px] text-center leading-3">0</span>
+                      <span className="inline-block w-4 h-4 rounded-full border-2 border-red-400 bg-red-50 opacity-70" />
                       예약 불가 날짜
                     </p>
                   )}
@@ -771,13 +770,12 @@ export default function StayDetailPage() {
                   selected={selectedRange}
                   onSelect={setSelectedRange}
                   disabled={[{ before: new Date() }, ...bookedDates]}
+                  modifiers={{ booked: bookedDates }}
+                  modifiersClassNames={{ booked: "rdp-day_booked" }}
                   numberOfMonths={1}
                   locale={ko}
                   labels={koLabels}
                   className="!font-sans mx-auto"
-                  modifiersStyles={{
-                    disabled: { color: "#ccc", textDecoration: "line-through" },
-                  }}
                 />
               </div>
 

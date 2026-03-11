@@ -11,7 +11,7 @@ import ScrollToTop from "@/components/common/ScrollToTop";
 import EmptyState from "@/components/common/EmptyState";
 import { formatPrice, formatDate, cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
-import { getUserReservations, getUserReviews, deleteReview } from "@/lib/user-api";
+import { getUserReservations, getUserReviews, deleteReview, updateReview } from "@/lib/user-api";
 import { getAllStays } from "@/lib/stays-api";
 import type { Reservation, Review, Stay } from "@/types";
 
@@ -34,6 +34,9 @@ export default function MyPage() {
   const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [allStays, setAllStays] = useState<Stay[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -280,6 +283,7 @@ export default function MyPage() {
                 <div className="space-y-4">
                   {userReviews.map((review) => {
                     const stay = allStays.find((s) => s.id === review.stay_id);
+                    const isEditing = editingReviewId === review.id;
                     return (
                       <div
                         key={review.id}
@@ -296,37 +300,116 @@ export default function MyPage() {
                             <span className="text-[12px] text-text-secondary">
                               {formatDate(review.created_at)}
                             </span>
-                            <button
-                              onClick={async () => {
-                                await deleteReview(review.id, user.id);
-                                setUserReviews((prev) => prev.filter((r) => r.id !== review.id));
-                                showToast("리뷰가 삭제되었습니다", "info");
-                              }}
-                              className="text-text-secondary hover:text-error transition-colors"
-                              title="삭제"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                              </svg>
-                            </button>
+                            {!isEditing && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingReviewId(review.id);
+                                    setEditRating(review.rating);
+                                    setEditContent(review.content);
+                                  }}
+                                  className="text-text-secondary hover:text-accent transition-colors"
+                                  title="수정"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await deleteReview(review.id, user.id);
+                                    setUserReviews((prev) => prev.filter((r) => r.id !== review.id));
+                                    showToast("리뷰가 삭제되었습니다", "info");
+                                  }}
+                                  className="text-text-secondary hover:text-error transition-colors"
+                                  title="삭제"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="flex gap-0.5 mb-2">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <svg
-                              key={star}
-                              width="14"
-                              height="14"
-                              viewBox="0 0 14 14"
-                              fill={star <= review.rating ? "#C8A882" : "#ddd"}
-                            >
-                              <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.4 3.3 12.3l.7-4.1-3-2.9 4.2-.7L7 1z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="text-[14px] text-text-primary leading-relaxed">
-                          {review.content}
-                        </p>
+
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            {/* 별점 수정 */}
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  onClick={() => setEditRating(star)}
+                                  className="transition-transform hover:scale-110"
+                                >
+                                  <svg width="20" height="20" viewBox="0 0 14 14" fill={star <= editRating ? "#C8A882" : "#ddd"}>
+                                    <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.4 3.3 12.3l.7-4.1-3-2.9 4.2-.7L7 1z" />
+                                  </svg>
+                                </button>
+                              ))}
+                            </div>
+                            {/* 내용 수정 */}
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              className="w-full border border-gray-200 rounded-lg p-3 text-[14px] text-text-primary focus:outline-none focus:border-accent resize-none"
+                              rows={3}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => setEditingReviewId(null)}
+                                className="px-4 py-1.5 text-[13px] text-text-secondary hover:text-primary rounded-button border border-gray-200 transition-colors"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!editContent.trim()) {
+                                    showToast("리뷰 내용을 입력해주세요", "error");
+                                    return;
+                                  }
+                                  await updateReview(review.id, user.id, {
+                                    rating: editRating,
+                                    content: editContent,
+                                  });
+                                  setUserReviews((prev) =>
+                                    prev.map((r) =>
+                                      r.id === review.id
+                                        ? { ...r, rating: editRating, content: editContent }
+                                        : r
+                                    )
+                                  );
+                                  setEditingReviewId(null);
+                                  showToast("리뷰가 수정되었습니다", "success");
+                                }}
+                                className="px-4 py-1.5 text-[13px] text-white bg-primary hover:bg-primary/90 rounded-button transition-colors"
+                              >
+                                저장
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex gap-0.5 mb-2">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <svg
+                                  key={star}
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 14 14"
+                                  fill={star <= review.rating ? "#C8A882" : "#ddd"}
+                                >
+                                  <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.4 3.3 12.3l.7-4.1-3-2.9 4.2-.7L7 1z" />
+                                </svg>
+                              ))}
+                            </div>
+                            <p className="text-[14px] text-text-primary leading-relaxed">
+                              {review.content}
+                            </p>
+                          </>
+                        )}
                       </div>
                     );
                   })}

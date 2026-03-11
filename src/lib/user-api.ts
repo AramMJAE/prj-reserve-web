@@ -268,6 +268,33 @@ export async function getUserReviews(userId: string): Promise<Review[]> {
   return localSaved;
 }
 
+export async function updateReview(
+  id: string,
+  userId: string,
+  updates: { rating?: number; content?: string }
+): Promise<boolean> {
+  if (supabase && isSupabaseUser(userId) && UUID_REGEX.test(id)) {
+    const { error } = await supabase
+      .from("reviews")
+      .update(updates)
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (!error) return true;
+    console.warn("[updateReview] Supabase error:", error?.message);
+  }
+
+  // localStorage fallback
+  const saved: Review[] = JSON.parse(localStorage.getItem("staylog_reviews") || "[]");
+  const idx = saved.findIndex((r) => r.id === id);
+  if (idx !== -1) {
+    saved[idx] = { ...saved[idx], ...updates };
+    localStorage.setItem("staylog_reviews", JSON.stringify(saved));
+    return true;
+  }
+  return false;
+}
+
 export async function deleteReview(id: string, userId: string): Promise<boolean> {
   if (supabase && isSupabaseUser(userId) && UUID_REGEX.test(id)) {
     const { error } = await supabase

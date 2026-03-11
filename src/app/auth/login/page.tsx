@@ -88,7 +88,7 @@ export default function LoginPage() {
   */
 
   const handleGuestLogin = () => {
-    setUser({ id: "guest-01", email: "guest@staylog.kr", name: "게스트", role: "user" });
+    setUser({ id: "user-01", email: "guest@staylog.kr", name: "게스트", role: "user" });
     showToast("게스트로 로그인되었습니다", "success");
     router.push("/");
   };
